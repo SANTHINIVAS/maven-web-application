@@ -1,0 +1,42 @@
+node
+{
+   def mavenHome = tool name: "maven3.6.3"
+   echo "GitHub BranhName ${env.BRANCH_NAME}"
+  echo "Jenkins Job Number ${env.BUILD_NUMBER}"
+  echo "Jenkins Node Name ${env.NODE_NAME}"
+  
+  echo "Jenkins Home ${env.JENKINS_HOME}"
+  echo "Jenkins URL ${env.JENKINS_URL}"
+  echo "JOB Name ${env.JOB_NAME}"
+   properties([buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '3', daysToKeepStr: '', numToKeepStr: '3')), pipelineTriggers([pollSCM('* * * * *')])])
+   stage('CheckoutCode')
+   {
+        git branch: 'development', credentialsId: 'ae60c820-8a34-42ae-9e3a-5e71f51efa3d', url: 'https://github.com/SANTHINIVAS/maven-web-application.git'
+   }
+   stage('BuildCode')
+   {
+        sh "${mavenHome}/bin/mvn clean package"
+   }
+   stage('QualityCheck')
+   {
+        sh "${mavenHome}/bin/mvn sonar:sonar"
+   }
+   stage('UploadtoRepo')
+   {
+        sh "${mavenHome}/bin/mvn deploy"
+   }
+   stage('deployintotomcat')
+   {
+        sshagent(['40fdc5c1-87b2-44a3-b45a-a091da377573']) {
+        sh "scp -o StrictHostKeyChecking=no target/maven-web-application.war ec2-user@35.154.69.82:/opt/apache-tomcat-9.0.44/webapps"
+       }
+   }
+   stage('sendemail')
+   {
+      emailext body: '''Test Pipeline
+
+
+      Thanks and regards
+      Santhi Kumar''', subject: 'Test Pipeline', to: 'santhiinvsp@gmail.com'
+   }
+}
